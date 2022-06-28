@@ -68,7 +68,7 @@ class Demo:
         return img_tensor, (width, height), (padded_width, padded_height)
 
     @staticmethod
-    def run(detector: TorchVisionModel, num_hands: int = 2, threshold: float = 0.5) -> None:
+    def run(detector: TorchVisionModel, num_hands: int = 2, threshold: float = 0.5, device: torch.device = torch.device('cpu')) -> None:
         """
         Run detection model and draw bounding boxes on frame
         Parameters
@@ -82,7 +82,6 @@ class Demo:
         """
 
         cap = cv2.VideoCapture(0)
-
         t1 = cnt = 0
         while cap.isOpened():
             delta = (time.time() - t1)
@@ -90,15 +89,14 @@ class Demo:
 
             ret, frame = cap.read()
             if ret:
-                processed_frame, size, padded_size = Demo.preprocess(frame)
+                processed_frame, size, padded_size = Demo.preprocess(frame, device)
                 with torch.no_grad():
-                    output = detector(processed_frame)[0]
+                    output = detector(processed_frame.to(device))[0]
                 boxes = output["boxes"][:num_hands]
                 scores = output["scores"][:num_hands]
                 labels = output["labels"][:num_hands]
                 for i in range(min(num_hands, len(boxes))):
                     if scores[i] > threshold:
-
                         width, height = size
                         padded_width, padded_height = padded_size
                         scale = max(width, height) / 320
@@ -145,6 +143,7 @@ def _load_model(model_path: str, device: str) -> TorchVisionModel:
         raise FileNotFoundError
 
     ssd_mobilenet.load_state_dict(model_path, map_location=device)
+    ssd_mobilenet.to(device)
     ssd_mobilenet.eval()
     return ssd_mobilenet
 
@@ -165,7 +164,7 @@ def parse_arguments(params: Optional[Tuple] = None) -> argparse.Namespace:
         "--device",
         required=False,
         default="cpu",
-        type=str,
+        type=torch.device,
         help="Device"
     )
 
@@ -177,4 +176,4 @@ if __name__ == '__main__':
     args = parse_arguments()
     model = _load_model(os.path.expanduser(args.path_to_model), args.device)
     if model is not None:
-        Demo.run(model, num_hands=100, threshold=0.5)
+        Demo.run(model, num_hands=100, threshold=0.5, device=args.device)
