@@ -89,7 +89,7 @@ class Demo:
 
             ret, frame = cap.read()
             if ret:
-                processed_frame, size, padded_size = Demo.preprocess(frame, device)
+                processed_frame, size, padded_size = Demo.preprocess(frame)
                 with torch.no_grad():
                     output = detector(processed_frame.to(device))[0]
                 boxes = output["boxes"][:num_hands]
